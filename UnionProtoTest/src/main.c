@@ -21,10 +21,12 @@
 #include "os_io_seproxyhal.h"
 #include "pb_encode.h"
 #include "pb_decode.h"
+#include "util.h"
 //include when using Simple proto
 // #include "simple.pb.h"
 //include when using Union proto
-#include "unionproto.pb.h"
+#include "CreateAccount.pb.h"
+
 unsigned char G_io_seproxyhal_spi_buffer[IO_SEPROXYHAL_BUFFER_SIZE_B];
 
 static const bagl_element_t *io_seproxyhal_touch_exit(const bagl_element_t *e);
@@ -214,44 +216,6 @@ static void ui_idle(void) {
     }
 }
 
-const pb_field_t* decode_unionmessage_type(pb_istream_t *stream)
-{
-    pb_wire_type_t wire_type;
-    uint32_t tag;
-    bool eof;
-    while (pb_decode_tag(stream, &wire_type, &tag, &eof))
-    {
-        if (wire_type == PB_WT_STRING)
-        {
-            const pb_field_t *field;
-            for (field = UnionMessage_fields; field->tag != 0; field++)
-            {
-                if (field->tag == tag && (field->type & PB_LTYPE_SUBMESSAGE))
-                {
-                    /* Found our field. */
-                    return (void *)PIC(field->ptr);
-                }
-            }
-        }
-        
-        /* Wasn't our field.. */
-        pb_skip_field(stream, wire_type);
-    }
-    
-    return NULL;
-}
-
-bool decode_unionmessage_contents(pb_istream_t *stream, const pb_field_t fields[], void *dest_struct)
-{
-    pb_istream_t substream;
-    bool status;
-    if (!pb_make_string_substream(stream, &substream))
-        return false;
-    status = pb_decode(&substream, fields, dest_struct);
-    pb_close_string_substream(stream, &substream);
-    return status;
-}
-
 static void sample_main(void) {
     volatile unsigned int rx = 0;
     volatile unsigned int tx = 0;
@@ -264,7 +228,8 @@ static void sample_main(void) {
     // APDU injection faults.
     for (;;) {
         volatile unsigned short sw = 0;
-
+        /* Allocate space for the decoded message. */
+        
         BEGIN_TRY {
             TRY {
                 rx = tx;
@@ -272,70 +237,51 @@ static void sample_main(void) {
                         // an error
                 rx = io_exchange(CHANNEL_APDU | flags, rx);
                 flags = 0;
-                // Uncomment hardcode type 1, type 2 or type 3 count and buffer values
                 
-                // binary for Union type 1 proto
-                // size_t count=4;
-                // uint8_t buffer[count];
-                // buffer[0]=10;
-                // buffer[1]=2;
-                // buffer[2]=8;
-                // buffer[3]=42;
+                char *txn="120022710a120a0c08c3dc8ce60510f8a084c701120218021202180318a08d062202081e28013213437265617465204163636f756e7420546573745a380a221220c9ae8ce9dbff64da0dc61e3389699bd848a355a93cb474b2beea9df84b93fb5d10f0d193a58d1d1a0030e70738e7074a03088827"; 
+                //char *txn="0a120a0c08c3dc8ce60510f8a084c701120218021202180318a08d062202081e28013213437265617465204163636f756e7420546573745a380a221220c9ae8ce9dbff64da0dc61e3389699bd848a355a93cb474b2beea9df84b93fb5d10f0d193a58d1d1a0030e70738e7074a03088827";
                 
-                // binary for Union type 2 proto
-                // size_t count=4;
-                // uint8_t buffer[count];
-                // buffer[0]=18;
-                // buffer[1]=2;
-                // buffer[2]=8;
-                // buffer[3]=1;
-                
-                // binary for Union type 3 proto
-                size_t count=7;
-                uint8_t buffer[count];
-                buffer[0]=26;
-                buffer[1]=5;
-                buffer[2]=8;
-                buffer[3]=3;
-                buffer[4]=16;
-                buffer[5]=135;
-                buffer[6]=11;
-                
-                PRINTF("Running nested union message test\n");
-                pb_istream_t stream = pb_istream_from_buffer(buffer, count);
-    
-                const pb_field_t *type = decode_unionmessage_type(&stream);
+                size_t buffer_length = strlen(txn) / 2;
+                uint8_t buffer[buffer_length];
                 bool status = false;
+                status = hex_to_bytes(txn, buffer);
+                if (!status) {
+                    PRINTF("Invalid hex\n");
+                }
+                status = false;
+                    
+                {
+                    /* Allocate space for the decoded message. */
+                    Transaction message = Transaction_init_default;
+                    /* Create a stream that reads from the buffer. */
+                    pb_istream_t stream = pb_istream_from_buffer(buffer, buffer_length);
+                    /* Now we are ready to decode the message. */
+                    status = pb_decode(&stream, Transaction_fields, &message);
+                    /* Check for errors... */
+                    if (!status)
+                    {
+                        PRINTF("Decoding failed: %s\n", PB_GET_ERROR(&stream));
+                    }
+                    
+                    /* Create a stream that reads from the buffer. */
+                    pb_istream_t streamBody = pb_istream_from_buffer(message.bodyData.bodyBytes.bytes, message.bodyData.bodyBytes.size);
+                    // pb_istream_t streamBody = pb_istream_from_buffer(buffer, buffer_length);
+                    /* Now we are ready to decode the message. */
+                    TransactionBody messageBody = TransactionBody_init_default;
+                    status = pb_decode(&streamBody, TransactionBody_fields, &messageBody);
+                    /* Check for errors... */
+                    if (!status){
+                        PRINTF("Decoding body failed: %s\n", PB_GET_ERROR(&streamBody));
+                    }
+                    
+                    /* Print the buffer contained in the message. */
+                    char result_hex[17],result_hex2[17];
+                    uint64_to_hex_proper_endian(messageBody.transactionID.accountID.accountNum, result_hex);
+                    PRINTF("messageBody.transactionID.accountID.accountNum: %s \n", result_hex);
+                    uint64_to_hex_proper_endian(messageBody.data.cryptoCreateAccount.initialBalance, result_hex2);
+                    PRINTF("messageBody.data.cryptoCreateAccount.initialBalance: %s \n", result_hex2);
+                }
                 
-                if (type == MsgType1_fields)
-                {
-                    MsgType1 msg = {};
-                    status = decode_unionmessage_contents(&stream, MsgType1_fields, &msg);
-                    PRINTF("Got MsgType1\n");
-                    PRINTF("UnionMessage.MsgType1.value = %d\n", msg.value);
-                }
-                else if (type == MsgType2_fields)
-                {
-                    MsgType2 msg = {};
-                    status = decode_unionmessage_contents(&stream, MsgType2_fields, &msg);
-                    PRINTF("Got MsgType2\n");
-                    PRINTF("UnionMessage.MsgType2.value = %s\n", msg.value ? "true" : "false");
-                }
-                else if (type == MsgType3_fields)
-                {
-                    MsgType3 msg = {};
-                    status = decode_unionmessage_contents(&stream, MsgType3_fields, &msg);
-                    PRINTF("Got MsgType3\n");
-                    PRINTF("UnionMessage.MsgType3.value1 = %d\n", msg.value1);
-                    PRINTF("UnionMessage.MsgType3.value2 = %d\n", msg.value2);
-                }
-                
-                if (!status)
-                {
-                    PRINTF("Decode failed: %s\n", PB_GET_ERROR(&stream));
-                    //return 1;
-                }
-  
                 // no apdu received, well, reset the session, and reset the
                 // bootloader configuration
                 if (rx == 0) {
@@ -351,12 +297,12 @@ static void sample_main(void) {
                 case 0x00: // reset
                     flags |= IO_RESET_AFTER_REPLIED;
                     THROW(0x9000);
-                    break;
 
                 case 0x01: // case 1
                     THROW(0x9000);
                     break;
 
+                    break;
                 case 0x02: // echo
                     tx = rx;
                     THROW(0x9000);

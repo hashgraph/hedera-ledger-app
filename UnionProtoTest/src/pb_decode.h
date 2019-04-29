@@ -141,6 +141,7 @@ bool pb_decode_varint(pb_istream_t *stream, uint64_t *dest);
 #else
 #define pb_decode_varint pb_decode_varint32
 #endif
+// uint64_t val2;
 
 /* Decode an integer in the varint format. This works for bool, enum, int32,
  * and uint32 field types. */
