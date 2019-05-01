@@ -16,7 +16,7 @@
 #include "pb.h"
 #include "pb_decode.h"
 #include "pb_common.h"
-
+#include <stdio.h>
 /**************************************
  * Declarations internal to this file *
  **************************************/
@@ -655,9 +655,10 @@ static bool checkreturn decode_callback_field(pb_istream_t *stream, pb_wire_type
 #ifdef PB_OLD_CALLBACK_STYLE
     void *arg = pCallback->arg;
 #else
+    printf("here\n");
     void **arg = &(pCallback->arg);
 #endif
-    
+    printf("pCallback->funcs.decode == NULL is %d\n",pCallback->funcs.decode == NULL);
     if (pCallback == NULL || pCallback->funcs.decode == NULL)
         return pb_skip_field(stream, wire_type);
     
@@ -915,7 +916,7 @@ bool checkreturn pb_decode_noinit(pb_istream_t *stream, const pb_field_t fields[
             else
                 return false;
         }
-        
+        printf("tag=%d, wire_type=%d\n",tag,wire_type);
         if (!pb_field_iter_find(&iter, tag))
         {
             /* No match found, check if it matches an extension. */

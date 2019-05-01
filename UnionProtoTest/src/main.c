@@ -215,7 +215,6 @@ static void ui_idle(void) {
         UX_DISPLAY(bagl_ui_sample_nanos, NULL);
     }
 }
-
 static void sample_main(void) {
     volatile unsigned int rx = 0;
     volatile unsigned int tx = 0;
@@ -239,8 +238,6 @@ static void sample_main(void) {
                 flags = 0;
                 
                 char *txn="120022710a120a0c08c3dc8ce60510f8a084c701120218021202180318a08d062202081e28013213437265617465204163636f756e7420546573745a380a221220c9ae8ce9dbff64da0dc61e3389699bd848a355a93cb474b2beea9df84b93fb5d10f0d193a58d1d1a0030e70738e7074a03088827"; 
-                //char *txn="0a120a0c08c3dc8ce60510f8a084c701120218021202180318a08d062202081e28013213437265617465204163636f756e7420546573745a380a221220c9ae8ce9dbff64da0dc61e3389699bd848a355a93cb474b2beea9df84b93fb5d10f0d193a58d1d1a0030e70738e7074a03088827";
-                
                 size_t buffer_length = strlen(txn) / 2;
                 uint8_t buffer[buffer_length];
                 bool status = false;
@@ -280,6 +277,48 @@ static void sample_main(void) {
                     PRINTF("messageBody.transactionID.accountID.accountNum: %s \n", result_hex);
                     uint64_to_hex_proper_endian(messageBody.data.cryptoCreateAccount.initialBalance, result_hex2);
                     PRINTF("messageBody.data.cryptoCreateAccount.initialBalance: %s \n", result_hex2);
+                }
+                
+                char *txn2="1200223f0a130a0c0888eca1e6051088b6f0d002120318ed071202180318a08d062202081e2801320e557064617465204163636f756e747a0a120318ec07420308aa46";
+                size_t buffer_length2 = strlen(txn2) / 2;
+                uint8_t buffer2[buffer_length2];
+                bool status2 = false;
+                status2 = hex_to_bytes(txn2, buffer2);
+                if (!status2) {
+                    PRINTF("Invalid hex\n");
+                }
+                status2 = false;
+                    
+                {
+                    /* Allocate space for the decoded message. */
+                    Transaction message2 = Transaction_init_default;
+                    /* Create a stream that reads from the buffer. */
+                    pb_istream_t stream2 = pb_istream_from_buffer(buffer2, buffer_length2);
+                    /* Now we are ready to decode the message. */
+                    status2 = pb_decode(&stream2, Transaction_fields, &message2);
+                    /* Check for errors... */
+                    if (!status2)
+                    {
+                        PRINTF("Decoding failed: %s\n", PB_GET_ERROR(&stream2));
+                    }
+                    
+                    /* Create a stream that reads from the buffer. */
+                    pb_istream_t streamBody2 = pb_istream_from_buffer(message2.bodyData.bodyBytes.bytes, message2.bodyData.bodyBytes.size);
+                    // pb_istream_t streamBody2 = pb_istream_from_buffer(buffer2, buffer_length2);
+                    /* Now we are ready to decode the message. */
+                    TransactionBody messageBody2 = TransactionBody_init_default;
+                    status2 = pb_decode(&streamBody2, TransactionBody_fields, &messageBody2);
+                    /* Check for errors... */
+                    if (!status2){
+                        PRINTF("Decoding body failed: %s\n", PB_GET_ERROR(&streamBody2));
+                    }
+                    
+                    /* Print the buffer contained in the message. */
+                    char result2_hex[17],result2_hex2[17];
+                    uint64_to_hex_proper_endian(messageBody2.transactionID.accountID.accountNum, result2_hex);
+                    PRINTF("messageBody2.transactionID.accountID.accountNum: %s \n", result2_hex);
+                    uint64_to_hex_proper_endian(messageBody2.data.cryptoUpdateAccount.autoRenewPeriod.seconds, result2_hex2);
+                    PRINTF("messageBody2.data.cryptoUpdateAccount.autoRenewPeriod.seconds: %s \n", result2_hex2);
                 }
                 
                 // no apdu received, well, reset the session, and reset the

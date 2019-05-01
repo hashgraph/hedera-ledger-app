@@ -1,4 +1,7 @@
 syntax = "proto3";
+
+import "wrappers.proto";
+
 message ShardID {
     int64 shardNum = 1; //the shard number (nonnegative)
 }
@@ -53,7 +56,7 @@ message Key {
         ContractID contractID = 1; // smart contract instance that is authorized as if it had signed with a key
         bytes ed25519 = 2; // ed25519 public key bytes
         bytes RSA_3072 = 3; //RSA-3072 public key bytes
-        bytes ECDSA_384 = 4; //ECDSA with the p-384 curve public key bytes
+        bytes ECDSA_384 = 4; //ECDirectorDSA with the p-384 curve public key bytes
         ThresholdKey thresholdKey = 5; // a threshold N followed by a list of M keys, any N of which are required to form a valid signature
         KeyList keyList = 6; // A list of Keys of the Key type.
     }
@@ -242,6 +245,27 @@ message CryptoCreateTransactionBody {
     RealmID realmID = 11; // The realm in which this account is created (leave this null to create a new realm)
     Key newRealmAdminKey = 12; // If realmID is null, then this the admin key for the new realm that will be created
 }
+/* Change properties for the given account. Any null field is ignored (left unchanged). This transaction must be signed by the existing key for this account. If the transaction is changing the key field, then the transaction must be signed by both the old key (from before the change) and the new key. The old key must sign for security. The new key must sign as a safeguard to avoid accidentally changing to an invalid key, and then having no way to recover. When extending the expiration date, the cost is affected by the size of the list of attached claims, and of the keys associated with the claims and the account. */
+message CryptoUpdateTransactionBody {
+    AccountID accountIDToUpdate = 2; // The account ID which is being updated in this transaction
+    Key key = 3; // The new key
+    AccountID proxyAccountID = 4; // ID of the account to which this account is proxy staked. If proxyAccountID is null, or is an invalid account, or is an account that isn't a node, then this account is automatically proxy staked to a node chosen by the network, but without earning payments. If the proxyAccountID account refuses to accept proxy staking , or if it is not currently running a node, then it will behave as if proxyAccountID was null.
+    int32 proxyFraction = 5 [deprecated = true]; // [Deprecated]. payments earned from proxy staking are shared between the node and this account, with proxyFraction / 10000 going to this account
+    oneof sendRecordThresholdField {
+        uint64 sendRecordThreshold = 6 [deprecated = true]; // [Deprecated]. The new threshold amount (in tinybars) for which an account record is created for any send/withdraw transaction
+        google.protobuf.UInt64Value sendRecordThresholdWrapper = 11; // The new threshold amount (in tinybars) for which an account record is created for any send/withdraw transaction
+    }
+    oneof receiveRecordThresholdField {
+        uint64 receiveRecordThreshold = 7 [deprecated = true]; // [Deprecated]. The new threshold amount (in tinybars) for which an account record is created for any receive/deposit transaction.
+        google.protobuf.UInt64Value receiveRecordThresholdWrapper = 12; // The new threshold amount (in tinybars) for which an account record is created for any receive/deposit transaction.
+    }
+    Duration autoRenewPeriod = 8; // The duration in which it will automatically extend the expiration period. If it doesn't have enough balance, it extends as long as possible. If it is empty when it expires, then it is deleted.
+    Timestamp expirationTime = 9; // The new expiration time to extend to (ignored if equal to or before the current one)
+    oneof receiverSigRequiredField {
+        bool receiverSigRequired = 10 [deprecated = true];  // [Deprecated] Do NOT use this field to set a false value because the server cannot distinguish from the default value. Use receiverSigRequiredWrapper field for this purpose.
+        google.protobuf.BoolValue receiverSigRequiredWrapper = 13; // If true, this account's key must sign any transaction depositing into this account (in addition to all withdrawals)
+    }
+}
 /* A single transaction. All transaction types are possible here. */
 message TransactionBody {
     TransactionID transactionID = 1; // The ID for this transaction, which includes the payer's account (the account paying the transaction fee). If two transactions have the same transactionID, they won't both have an effect
@@ -261,7 +285,7 @@ message TransactionBody {
         // CryptoDeleteTransactionBody cryptoDelete = 12; // Delete a cryptocurrency account (mark as deleted, and transfer hbars out)
         // CryptoDeleteClaimTransactionBody cryptoDeleteClaim = 13; // Remove a claim from an account
         // CryptoTransferTransactionBody cryptoTransfer = 14; // Transfer amount between accounts
-        // CryptoUpdateTransactionBody cryptoUpdateAccount = 15; // Modify information such as the expiration date for an account
+        CryptoUpdateTransactionBody cryptoUpdateAccount = 15; // Modify information such as the expiration date for an account
 
         // FileAppendTransactionBody fileAppend = 16; // Add bytes to the end of the contents of a file
         // FileCreateTransactionBody fileCreate = 17; // Create a new file
