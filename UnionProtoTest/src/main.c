@@ -212,29 +212,44 @@ static void ui_idle(void) {
         UX_DISPLAY(bagl_ui_sample_nanos, NULL);
     }
 }
+#define MEMO_MAX_SIZE 128
+typedef struct {
+    uint8_t buffer[MEMO_MAX_SIZE];
+    size_t buffer_length;
+} memo_t;
 
-bool print_string(pb_istream_t *stream, const pb_field_t *field, void **arg, uint8_t buffer[])
+void memo_add_array(memo_t *memo, uint8_t source[], size_t length)
 {
-    // uint8_t buffer[128] = {0};
-    
+    size_t i=0;
+    for(i=0; i<length; i++) {
+        if(memo->buffer_length < MEMO_MAX_SIZE) {
+            memo->buffer[memo->buffer_length] = source[i];
+            memo->buffer_length++;
+        }
+    }
+}
+
+bool print_string(pb_istream_t *stream, const pb_field_t *field, void **arg)
+{
+    uint8_t buffer[MEMO_MAX_SIZE] = {0};
+    memo_t *memo = (memo_t *)(*arg);
+    size_t length;
     /* Read bytes_left or 128 bytes whichever is less */
-    if (stream->bytes_left > 128){
+    if (stream->bytes_left > MEMO_MAX_SIZE){
         //more than 128 bytes so read first 128 bytes
-        if (!pb_read(stream, buffer, 128))
+        length = MEMO_MAX_SIZE; 
+        if (!pb_read(stream, buffer, length))
             return false;
         //read to the end of field
-        pb_read(stream, NULL, stream->bytes_left - 128); 
+        pb_read(stream, NULL, stream->bytes_left - length);
     } else {
         //read bytes_left  bytes
-        if (!pb_read(stream, buffer, stream->bytes_left))
+        length = stream->bytes_left;
+        if (!pb_read(stream, buffer, length))
             return false;
     }
-
-    /* Print the string, in format comparable with protoc --decode.
-     * Format comes from the arg defined in main().
-     */
-    PRINTF("%s\n", buffer);
-    //buffer1 = buffer;
+    //add buffer to memo
+    memo_add_array(memo, buffer, length);
     return true;
 }
 
@@ -305,9 +320,10 @@ static void sample_main(void) {
                         // pb_istream_t streamBody = pb_istream_from_buffer(buffer, buffer_length);
                         /* Now we are ready to decode the message. */
                         TransactionBody messageBody = TransactionBody_init_default;
-                        uint8_t buffer[128]={0};
+                        memo_t memo_decoded = {{0}, 0};
+                        messageBody.memo.arg = &memo_decoded;
                         messageBody.memo.funcs.decode = &print_string;
-                        status = pb_decode_memo(&streamBody, TransactionBody_fields, &messageBody, buffer);
+                        status = pb_decode(&streamBody, TransactionBody_fields, &messageBody);
                         // status = pb_decode(&streamBody, TransactionBody_fields, &messageBody);
                         /* Check for errors... */
                         if (!status){
@@ -322,7 +338,7 @@ static void sample_main(void) {
                             PRINTF("messageBody.transactionID.accountID.accountNum: %s \n", result_hex);
                             uint64_to_hex_proper_endian(messageBody.data.cryptoCreateAccount.initialBalance, result_hex);
                             PRINTF("messageBody.data.cryptoCreateAccount.initialBalance: %s \n", result_hex);
-                            PRINTF("messageBody.memo: %s\n", buffer);
+                            PRINTF("messageBody.memo: %s\n", memo_decoded.buffer);
                         } else if (messageBody.which_data == TransactionBody_cryptoUpdateAccount_tag) {
                             // update account transaction
                             char result_hex[17];
@@ -331,7 +347,7 @@ static void sample_main(void) {
                             PRINTF("messageBody.transactionID.accountID.accountNum: %s \n", result_hex);
                             uint64_to_hex_proper_endian(messageBody.data.cryptoUpdateAccount.autoRenewPeriod.seconds, result_hex);
                             PRINTF("messageBody.data.cryptoUpdateAccount.autoRenewPeriod.seconds: %s \n", result_hex);
-                            PRINTF("messageBody.memo: %s\n", buffer);
+                            PRINTF("messageBody.memo: %s\n", memo_decoded.buffer);
                         } else if (messageBody.which_data == TransactionBody_cryptoTransfer_tag) {
                             // crypto transfer transaction
                             char result_hex[17];
@@ -340,7 +356,7 @@ static void sample_main(void) {
                             PRINTF("messageBody.transactionID.accountID.accountNum: %s \n", result_hex);
                             // uint64_to_hex_proper_endian(messageBody.data.cryptoUpdateAccount.autoRenewPeriod.seconds, result_hex);
                             // PRINTF("messageBody.data.cryptoUpdateAccount.autoRenewPeriod.seconds: %s \n", result_hex);
-                            PRINTF("messageBody.memo: %s\n", buffer);
+                            PRINTF("messageBody.memo: %s\n", memo_decoded.buffer);
                         } else {
                             //TODO: throw unsupported transaction type error
                         }                    

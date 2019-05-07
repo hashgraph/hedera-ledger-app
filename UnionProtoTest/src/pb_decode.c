@@ -27,9 +27,7 @@ static bool checkreturn buf_read(pb_istream_t *stream, pb_byte_t *buf, size_t co
 static bool checkreturn read_raw_value(pb_istream_t *stream, pb_wire_type_t wire_type, pb_byte_t *buf, size_t *size);
 static bool checkreturn decode_static_field(pb_istream_t *stream, pb_wire_type_t wire_type, pb_field_iter_t *iter);
 static bool checkreturn decode_callback_field(pb_istream_t *stream, pb_wire_type_t wire_type, pb_field_iter_t *iter);
-static bool checkreturn decode_callback_field_ret(pb_istream_t *stream, pb_wire_type_t wire_type, pb_field_iter_t *iter, uint8_t buffer[]);
 static bool checkreturn decode_field(pb_istream_t *stream, pb_wire_type_t wire_type, pb_field_iter_t *iter);
-static bool checkreturn decode_field_ret(pb_istream_t *stream, pb_wire_type_t wire_type, pb_field_iter_t *iter, uint8_t buffer[]);
 static void iter_from_extension(pb_field_iter_t *iter, pb_extension_t *extension);
 static bool checkreturn default_extension_decoder(pb_istream_t *stream, pb_extension_t *extension, uint32_t tag, pb_wire_type_t wire_type);
 static bool checkreturn decode_extension(pb_istream_t *stream, uint32_t tag, pb_wire_type_t wire_type, pb_field_iter_t *iter);
@@ -656,7 +654,7 @@ static bool checkreturn decode_callback_field(pb_istream_t *stream, pb_wire_type
     void *arg = pCallback->arg;
 #else
     void **arg = &(pCallback->arg);
-    uint8_t buffer[1] = {0};
+
 #endif
     
     if (pCallback == NULL || pCallback->funcs.decode == NULL)
@@ -671,7 +669,7 @@ static bool checkreturn decode_callback_field(pb_istream_t *stream, pb_wire_type
         
         do
         {
-            if (!pCallback->funcs.decode(&substream, ((const pb_field_t *)PIC(iter->pos)), arg, buffer))
+            if (!pCallback->funcs.decode(&substream, ((const pb_field_t *)PIC(iter->pos)), arg))
                 PB_RETURN_ERROR(stream, "callback failed");
         } while (substream.bytes_left);
         
@@ -694,7 +692,7 @@ static bool checkreturn decode_callback_field(pb_istream_t *stream, pb_wire_type
             return false;
         substream = pb_istream_from_buffer(buffer, size);
         
-        return pCallback->funcs.decode(&substream, ((const pb_field_t *)PIC(iter->pos)), arg, buffer);
+        return pCallback->funcs.decode(&substream, ((const pb_field_t *)PIC(iter->pos)), arg);
     }
 }
 
@@ -913,7 +911,6 @@ bool checkreturn pb_decode_noinit(pb_istream_t *stream, const pb_field_t fields[
             else
                 return false;
         }
-        PRINTF("wire_type=%d, tag=%d, stream->bytes_left=%d\n", wire_type, tag, stream->bytes_left);
         if (!pb_field_iter_find(&iter, tag))
         {
             /* No match found, check if it matches an extension. */
@@ -1453,197 +1450,4 @@ static bool checkreturn pb_dec_fixed_length_bytes(pb_istream_t *stream, const pb
         PB_RETURN_ERROR(stream, "incorrect fixed length bytes size");
 
     return pb_read(stream, (pb_byte_t*)dest, field->data_size);
-}
-bool checkreturn pb_decode_memo(pb_istream_t *stream, const pb_field_t fields[], void *dest_struct, uint8_t buffer[])
-{
-    bool status;
-    pb_message_set_to_defaults(fields, dest_struct);
-    // status = pb_decode_noinit(stream, fields, dest_struct);
-    
-    uint32_t fields_seen[(PB_MAX_REQUIRED_FIELDS + 31) / 32] = {0, 0};
-    const uint32_t allbits = ~(uint32_t)0;
-    uint32_t extension_range_start = 0;
-    pb_field_iter_t iter;
-    
-    /* Return value ignored, as empty message types will be correctly handled by
-     * pb_field_iter_find() anyway. */
-    (void)pb_field_iter_begin(&iter, fields, dest_struct);
-    while (stream->bytes_left)
-    {
-        uint32_t tag;
-        pb_wire_type_t wire_type;
-        bool eof;
-        if (!pb_decode_tag(stream, &wire_type, &tag, &eof))
-        {
-            if (eof)
-                break;
-            else
-                return false;
-        }
-        PRINTF("memo wire_type=%d, tag=%d\n", wire_type, tag);
-        if (!pb_field_iter_find(&iter, tag))
-        {
-            /* No match found, check if it matches an extension. */
-            if (tag >= extension_range_start)
-            {
-                if (!find_extension_field(&iter))
-                    extension_range_start = (uint32_t)-1;
-                else
-                    extension_range_start = ((const pb_field_t*)PIC(iter.pos))->tag;
-                
-                if (tag >= extension_range_start)
-                {
-                    size_t pos = stream->bytes_left;
-                
-                    if (!decode_extension(stream, tag, wire_type, &iter))
-                        return false;
-                    
-                    if (pos != stream->bytes_left)
-                    {
-                        /* The field was handled */
-                        continue;                    
-                    }
-                }
-            }
-        
-            /* No match found, skip data */
-            if (!pb_skip_field(stream, wire_type))
-                return false;
-            continue;
-        }
-        
-        if (PB_HTYPE(((const pb_field_t*)PIC(iter.pos))->type) == PB_HTYPE_REQUIRED
-            && iter.required_field_index < PB_MAX_REQUIRED_FIELDS)
-        {
-            uint32_t tmp = ((uint32_t)1 << (iter.required_field_index & 31));
-            fields_seen[iter.required_field_index >> 5] |= tmp;
-        }
-        if (!decode_field_ret(stream, wire_type, &iter, buffer))
-            return false;
-
-    }
-    
-    /* Check that all required fields were present. */
-    {
-        /* First figure out the number of required fields by
-         * seeking to the end of the field array. Usually we
-         * are already close to end after decoding.
-         */
-        unsigned req_field_count;
-        pb_type_t last_type;
-        unsigned i;
-        do {
-            req_field_count = iter.required_field_index;
-            last_type = ((const pb_field_t*)PIC(iter.pos))->type;
-        } while (pb_field_iter_next(&iter));
-        
-        /* Fixup if last field was also required. */
-        if (PB_HTYPE(last_type) == PB_HTYPE_REQUIRED && ((const pb_field_t*)PIC(iter.pos))->tag != 0)
-            req_field_count++;
-        
-        if (req_field_count > PB_MAX_REQUIRED_FIELDS)
-            req_field_count = PB_MAX_REQUIRED_FIELDS;
-
-        if (req_field_count > 0)
-        {
-            /* Check the whole words */
-            for (i = 0; i < (req_field_count >> 5); i++)
-            {
-                if (fields_seen[i] != allbits)
-                    PB_RETURN_ERROR(stream, "missing required field");
-            }
-            
-            /* Check the remaining bits (if any) */
-            if ((req_field_count & 31) != 0)
-            {
-                if (fields_seen[req_field_count >> 5] !=
-                    (allbits >> (32 - (req_field_count & 31))))
-                {
-                    PB_RETURN_ERROR(stream, "missing required field");
-                }
-            }
-        }
-    }
-    return true;
-    
-#ifdef PB_ENABLE_MALLOC
-    if (!status)
-        pb_release(fields, dest_struct);
-#endif
-    return status;
-}
-static bool checkreturn decode_callback_field_ret(pb_istream_t *stream, pb_wire_type_t wire_type, pb_field_iter_t *iter, uint8_t buffer[])
-{
-    pb_callback_t *pCallback = (pb_callback_t*)iter->pData;
-    
-#ifdef PB_OLD_CALLBACK_STYLE
-    void *arg = pCallback->arg;
-#else
-    void **arg = &(pCallback->arg);
-#endif
-    
-    if (pCallback == NULL || pCallback->funcs.decode == NULL)
-        return pb_skip_field(stream, wire_type);
-    
-    if (wire_type == PB_WT_STRING)
-    {
-        pb_istream_t substream;
-        
-        if (!pb_make_string_substream(stream, &substream))
-            return false;
-        
-        do
-        {
-            if (!pCallback->funcs.decode(&substream, ((const pb_field_t *)PIC(iter->pos)), arg, buffer))
-                PB_RETURN_ERROR(stream, "callback failed");
-        } while (substream.bytes_left);
-        
-        if (!pb_close_string_substream(stream, &substream))
-            return false;
-
-        return true;
-    }
-    else
-    {
-        /* Copy the single scalar value to stack.
-         * This is required so that we can limit the stream length,
-         * which in turn allows to use same callback for packed and
-         * not-packed fields. */
-        pb_istream_t substream;
-        pb_byte_t buffer[10];
-        size_t size = sizeof(buffer);
-        
-        if (!read_raw_value(stream, wire_type, buffer, &size))
-            return false;
-        substream = pb_istream_from_buffer(buffer, size);
-        
-        return pCallback->funcs.decode(&substream, ((const pb_field_t *)PIC(iter->pos)), arg, buffer);
-    }
-}
-static bool checkreturn decode_field_ret(pb_istream_t *stream, pb_wire_type_t wire_type, pb_field_iter_t *iter, uint8_t buffer[])
-{
-#ifdef PB_ENABLE_MALLOC
-    /* When decoding an oneof field, check if there is old data that must be
-     * released first. */
-    if (PB_HTYPE(((const pb_field_t *)PIC(iter->pos))->type) == PB_HTYPE_ONEOF)
-    {
-        if (!pb_release_union_field(stream, iter))
-            return false;
-    }
-#endif
-    
-    switch (PB_ATYPE(((const pb_field_t *)PIC(iter->pos))->type))
-    {
-        case PB_ATYPE_STATIC:
-            return decode_static_field(stream, wire_type, iter);
-        
-        case PB_ATYPE_POINTER:
-            return decode_pointer_field(stream, wire_type, iter);
-        
-        case PB_ATYPE_CALLBACK:
-            return decode_callback_field_ret(stream, wire_type, iter, buffer);
-        
-        default:
-            PB_RETURN_ERROR(stream, "invalid field type");
-    }
 }

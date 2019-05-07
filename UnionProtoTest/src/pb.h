@@ -300,7 +300,7 @@ struct pb_callback_s {
 #else
     /* New function signature, which allows modifying arg contents in callback. */
     union {
-        bool (*decode)(pb_istream_t *stream, const pb_field_t *field, void **arg, uint8_t buffer[]);
+        bool (*decode)(pb_istream_t *stream, const pb_field_t *field, void **arg);
         bool (*encode)(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
     } funcs;
 #endif    

@@ -66,7 +66,6 @@ struct pb_istream_s
  *    pb_decode(&stream, MyMessage_fields, &msg);
  */
 bool pb_decode(pb_istream_t *stream, const pb_field_t fields[], void *dest_struct);
-bool pb_decode_memo(pb_istream_t *stream, const pb_field_t fields[], void *dest_struct, uint8_t buffer[]);
 
 /* Same as pb_decode, except does not initialize the destination structure
  * to default values. This is slightly faster if you need no default values
