@@ -22,9 +22,6 @@
 #include "pb_encode.h"
 #include "pb_decode.h"
 #include "util.h"
-//include when using Simple proto
-// #include "simple.pb.h"
-//include when using Union proto
 #include "CreateAccount.pb.h"
 
 unsigned char G_io_seproxyhal_spi_buffer[IO_SEPROXYHAL_BUFFER_SIZE_B];
@@ -215,6 +212,32 @@ static void ui_idle(void) {
         UX_DISPLAY(bagl_ui_sample_nanos, NULL);
     }
 }
+
+bool print_string(pb_istream_t *stream, const pb_field_t *field, void **arg, uint8_t buffer[])
+{
+    // uint8_t buffer[128] = {0};
+    
+    /* Read bytes_left or 128 bytes whichever is less */
+    if (stream->bytes_left > 128){
+        //more than 128 bytes so read first 128 bytes
+        if (!pb_read(stream, buffer, 128))
+            return false;
+        //read to the end of field
+        pb_read(stream, NULL, stream->bytes_left - 128); 
+    } else {
+        //read bytes_left  bytes
+        if (!pb_read(stream, buffer, stream->bytes_left))
+            return false;
+    }
+
+    /* Print the string, in format comparable with protoc --decode.
+     * Format comes from the arg defined in main().
+     */
+    PRINTF("%s\n", buffer);
+    //buffer1 = buffer;
+    return true;
+}
+
 static void sample_main(void) {
     volatile unsigned int rx = 0;
     volatile unsigned int tx = 0;
@@ -237,89 +260,6 @@ static void sample_main(void) {
                 rx = io_exchange(CHANNEL_APDU | flags, rx);
                 flags = 0;
                 
-                char *txn="120022710a120a0c08c3dc8ce60510f8a084c701120218021202180318a08d062202081e28013213437265617465204163636f756e7420546573745a380a221220c9ae8ce9dbff64da0dc61e3389699bd848a355a93cb474b2beea9df84b93fb5d10f0d193a58d1d1a0030e70738e7074a03088827"; 
-                size_t buffer_length = strlen(txn) / 2;
-                uint8_t buffer[buffer_length];
-                bool status = false;
-                status = hex_to_bytes(txn, buffer);
-                if (!status) {
-                    PRINTF("Invalid hex\n");
-                }
-                status = false;
-                    
-                {
-                    /* Allocate space for the decoded message. */
-                    Transaction message = Transaction_init_default;
-                    /* Create a stream that reads from the buffer. */
-                    pb_istream_t stream = pb_istream_from_buffer(buffer, buffer_length);
-                    /* Now we are ready to decode the message. */
-                    status = pb_decode(&stream, Transaction_fields, &message);
-                    /* Check for errors... */
-                    if (!status)
-                    {
-                        PRINTF("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-                    }
-                    
-                    /* Create a stream that reads from the buffer. */
-                    pb_istream_t streamBody = pb_istream_from_buffer(message.bodyData.bodyBytes.bytes, message.bodyData.bodyBytes.size);
-                    // pb_istream_t streamBody = pb_istream_from_buffer(buffer, buffer_length);
-                    /* Now we are ready to decode the message. */
-                    TransactionBody messageBody = TransactionBody_init_default;
-                    status = pb_decode(&streamBody, TransactionBody_fields, &messageBody);
-                    /* Check for errors... */
-                    if (!status){
-                        PRINTF("Decoding body failed: %s\n", PB_GET_ERROR(&streamBody));
-                    }
-                    
-                    /* Print the buffer contained in the message. */
-                    char result_hex[17],result_hex2[17];
-                    uint64_to_hex_proper_endian(messageBody.transactionID.accountID.accountNum, result_hex);
-                    PRINTF("messageBody.transactionID.accountID.accountNum: %s \n", result_hex);
-                    uint64_to_hex_proper_endian(messageBody.data.cryptoCreateAccount.initialBalance, result_hex2);
-                    PRINTF("messageBody.data.cryptoCreateAccount.initialBalance: %s \n", result_hex2);
-                }
-                
-                char *txn2="1200223f0a130a0c0888eca1e6051088b6f0d002120318ed071202180318a08d062202081e2801320e557064617465204163636f756e747a0a120318ec07420308aa46";
-                size_t buffer_length2 = strlen(txn2) / 2;
-                uint8_t buffer2[buffer_length2];
-                bool status2 = false;
-                status2 = hex_to_bytes(txn2, buffer2);
-                if (!status2) {
-                    PRINTF("Invalid hex\n");
-                }
-                status2 = false;
-                    
-                {
-                    /* Allocate space for the decoded message. */
-                    Transaction message2 = Transaction_init_default;
-                    /* Create a stream that reads from the buffer. */
-                    pb_istream_t stream2 = pb_istream_from_buffer(buffer2, buffer_length2);
-                    /* Now we are ready to decode the message. */
-                    status2 = pb_decode(&stream2, Transaction_fields, &message2);
-                    /* Check for errors... */
-                    if (!status2)
-                    {
-                        PRINTF("Decoding failed: %s\n", PB_GET_ERROR(&stream2));
-                    }
-                    
-                    /* Create a stream that reads from the buffer. */
-                    pb_istream_t streamBody2 = pb_istream_from_buffer(message2.bodyData.bodyBytes.bytes, message2.bodyData.bodyBytes.size);
-                    // pb_istream_t streamBody2 = pb_istream_from_buffer(buffer2, buffer_length2);
-                    /* Now we are ready to decode the message. */
-                    TransactionBody messageBody2 = TransactionBody_init_default;
-                    status2 = pb_decode(&streamBody2, TransactionBody_fields, &messageBody2);
-                    /* Check for errors... */
-                    if (!status2){
-                        PRINTF("Decoding body failed: %s\n", PB_GET_ERROR(&streamBody2));
-                    }
-                    
-                    /* Print the buffer contained in the message. */
-                    char result2_hex[17],result2_hex2[17];
-                    uint64_to_hex_proper_endian(messageBody2.transactionID.accountID.accountNum, result2_hex);
-                    PRINTF("messageBody2.transactionID.accountID.accountNum: %s \n", result2_hex);
-                    uint64_to_hex_proper_endian(messageBody2.data.cryptoUpdateAccount.autoRenewPeriod.seconds, result2_hex2);
-                    PRINTF("messageBody2.data.cryptoUpdateAccount.autoRenewPeriod.seconds: %s \n", result2_hex2);
-                }
                 
                 // no apdu received, well, reset the session, and reset the
                 // bootloader configuration
@@ -341,9 +281,70 @@ static void sample_main(void) {
                     THROW(0x9000);
                     break;
 
-                    break;
                 case 0x02: // echo
                     tx = rx;
+                    size_t buffer_length = G_io_apdu_buffer[4];
+                    uint8_t *buffer=&G_io_apdu_buffer[5];
+                    bool status = false;
+                        
+                    {
+                        /* Allocate space for the decoded message. */
+                        Transaction message = Transaction_init_default;
+                        /* Create a stream that reads from the buffer. */
+                        pb_istream_t stream = pb_istream_from_buffer(buffer, buffer_length);
+                        /* Now we are ready to decode the message. */
+                        status = pb_decode(&stream, Transaction_fields, &message);
+                        /* Check for errors... */
+                        if (!status)
+                        {
+                            PRINTF("Decoding failed: %s\n", PB_GET_ERROR(&stream));
+                        }
+                        
+                        /* Create a stream that reads from the buffer. */
+                        pb_istream_t streamBody = pb_istream_from_buffer(message.bodyData.bodyBytes.bytes, message.bodyData.bodyBytes.size);
+                        // pb_istream_t streamBody = pb_istream_from_buffer(buffer, buffer_length);
+                        /* Now we are ready to decode the message. */
+                        TransactionBody messageBody = TransactionBody_init_default;
+                        uint8_t buffer[128]={0};
+                        messageBody.memo.funcs.decode = &print_string;
+                        status = pb_decode_memo(&streamBody, TransactionBody_fields, &messageBody, buffer);
+                        // status = pb_decode(&streamBody, TransactionBody_fields, &messageBody);
+                        /* Check for errors... */
+                        if (!status){
+                            PRINTF("Decoding body failed: %s\n", PB_GET_ERROR(&streamBody));
+                        }
+                        // check for trnsaction type of data field
+                        if (messageBody.which_data == TransactionBody_cryptoCreateAccount_tag) {
+                            // create account transaction
+                            char result_hex[17];
+                            PRINTF("Create account transaction\n");
+                            uint64_to_hex_proper_endian(messageBody.transactionID.accountID.accountNum, result_hex);
+                            PRINTF("messageBody.transactionID.accountID.accountNum: %s \n", result_hex);
+                            uint64_to_hex_proper_endian(messageBody.data.cryptoCreateAccount.initialBalance, result_hex);
+                            PRINTF("messageBody.data.cryptoCreateAccount.initialBalance: %s \n", result_hex);
+                            PRINTF("messageBody.memo: %s\n", buffer);
+                        } else if (messageBody.which_data == TransactionBody_cryptoUpdateAccount_tag) {
+                            // update account transaction
+                            char result_hex[17];
+                            PRINTF("Update account transaction\n");
+                            uint64_to_hex_proper_endian(messageBody.transactionID.accountID.accountNum, result_hex);
+                            PRINTF("messageBody.transactionID.accountID.accountNum: %s \n", result_hex);
+                            uint64_to_hex_proper_endian(messageBody.data.cryptoUpdateAccount.autoRenewPeriod.seconds, result_hex);
+                            PRINTF("messageBody.data.cryptoUpdateAccount.autoRenewPeriod.seconds: %s \n", result_hex);
+                            PRINTF("messageBody.memo: %s\n", buffer);
+                        } else if (messageBody.which_data == TransactionBody_cryptoTransfer_tag) {
+                            // crypto transfer transaction
+                            char result_hex[17];
+                            PRINTF("Transfer transaction\n");
+                            uint64_to_hex_proper_endian(messageBody.transactionID.accountID.accountNum, result_hex);
+                            PRINTF("messageBody.transactionID.accountID.accountNum: %s \n", result_hex);
+                            // uint64_to_hex_proper_endian(messageBody.data.cryptoUpdateAccount.autoRenewPeriod.seconds, result_hex);
+                            // PRINTF("messageBody.data.cryptoUpdateAccount.autoRenewPeriod.seconds: %s \n", result_hex);
+                            PRINTF("messageBody.memo: %s\n", buffer);
+                        } else {
+                            //TODO: throw unsupported transaction type error
+                        }                    
+                    }
                     THROW(0x9000);
                     break;
 

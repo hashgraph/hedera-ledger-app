@@ -17,5 +17,13 @@
 #********************************************************************************
 from ledgerblue.comm import getDongle
 dongle = getDongle(True)
-dongle.exchange(bytes("800200000401020304".decode('hex')))
+#### Create account transaction
+#chunk = "120022710a120a0c08c3dc8ce60510f8a084c701120218021202180318a08d062202081e28013213437265617465204163636f756e7420546573745a380a221220c9ae8ce9dbff64da0dc61e3389699bd848a355a93cb474b2beea9df84b93fb5d10f0d193a58d1d1a0030e70738e7074a03088827"
+#### Update account transaction
+#chunk = "1200223f0a130a0c0888eca1e6051088b6f0d002120318ed071202180318a08d062202081e2801320e557064617465204163636f756e747a0a120318ec07420308aa46"
+#### Transfer transaction
+#chunk = "120022460a130a0c08e9b2ace60510e088a88103120318ce101202180318a08d062202081e320d54657374205472616e7366657272140a120a070a0318cc1010010a070a0318cd101002"
+p1 = 0x80
+apdu = bytes("8002".decode('hex')) + chr(p1) + chr(0x00) + chr(len(chunk)/2) + bytes(chunk.decode('hex'))
+dongle.exchange(apdu)
 

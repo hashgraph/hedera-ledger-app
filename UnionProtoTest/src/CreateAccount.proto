@@ -266,6 +266,22 @@ message CryptoUpdateTransactionBody {
         google.protobuf.BoolValue receiverSigRequiredWrapper = 13; // If true, this account's key must sign any transaction depositing into this account (in addition to all withdrawals)
     }
 }
+/* An account, and the amount that it sends or receives during a cryptocurrency transfer. */
+message AccountAmount {
+    AccountID accountID = 1; // The Account ID that sends or receives cryptocurrency
+    sint64 amount = 2; // The amount of tinybars that the account sends(negative) or receives(positive)
+}
+
+/* A list of accounts and amounts to transfer out of each account (negative) or into it (positive). */
+message TransferList {
+    repeated AccountAmount accountAmounts = 1; // Multiple list of AccountAmount pairs, each of which has an account and an amount to transfer into it (positive) or out of it (negative)
+}
+
+/* Transfer cryptocurrency from some accounts to other accounts. The accounts list can contain up to 10 accounts. The amounts list must be the same length as the accounts list. Each negative amount is withdrawn from the corresponding account (a sender), and each positive one is added to the corresponding account (a receiver). The amounts list must sum to zero. Each amount is a number of tinyBars (there are 100,000,000 tinyBars in one Hbar). If any sender account fails to have sufficient hbars to do the withdrawal, then the entire transaction fails, and none of those transfers occur, though the transaction fee is still charged. This transaction must be signed by the keys for all the sending accounts, and for any receiving accounts that have receiverSigRequired == true. The signatures are in the same order as the accounts, skipping those accounts that don't need a signature. */
+message CryptoTransferTransactionBody {
+    TransferList transfers = 1; // Accounts and amounts to transfer
+}
+
 /* A single transaction. All transaction types are possible here. */
 message TransactionBody {
     TransactionID transactionID = 1; // The ID for this transaction, which includes the payer's account (the account paying the transaction fee). If two transactions have the same transactionID, they won't both have an effect
@@ -284,7 +300,7 @@ message TransactionBody {
         CryptoCreateTransactionBody cryptoCreateAccount = 11; // Create a new cryptocurrency account
         // CryptoDeleteTransactionBody cryptoDelete = 12; // Delete a cryptocurrency account (mark as deleted, and transfer hbars out)
         // CryptoDeleteClaimTransactionBody cryptoDeleteClaim = 13; // Remove a claim from an account
-        // CryptoTransferTransactionBody cryptoTransfer = 14; // Transfer amount between accounts
+        CryptoTransferTransactionBody cryptoTransfer = 14; // Transfer amount between accounts
         CryptoUpdateTransactionBody cryptoUpdateAccount = 15; // Modify information such as the expiration date for an account
 
         // FileAppendTransactionBody fileAppend = 16; // Add bytes to the end of the contents of a file
