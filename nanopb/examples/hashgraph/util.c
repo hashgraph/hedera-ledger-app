@@ -36,18 +36,6 @@ bool hex_to_bytes(char* hex, uint8_t *buffer) {
     }
     return true;
 }
-
-void int64_to_hex_proper_endian(int64_t number, char hex[17]){
-    uint8_t *p = (uint8_t *)&number;
-    unsigned char hex_str[]= "0123456789abcdef";
-    memset(hex, 0, 17);
-    for(int i = 0; i < 8; i++) {
-        //to maintain proper endianness read buffer 'p' from the other end 
-        hex[i * 2 + 0] = hex_str[(p[7-i] >> 4) & 0x0F];
-        hex[i * 2 + 1] = hex_str[(p[7-i]) & 0x0F];
-    }
-}
-
 void uint64_to_hex_proper_endian(uint64_t number, char hex[17]){
     uint8_t *p = (uint8_t *)&number;
     unsigned char hex_str[]= "0123456789abcdef";

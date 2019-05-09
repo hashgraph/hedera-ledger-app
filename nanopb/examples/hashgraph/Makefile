@@ -9,6 +9,7 @@ CFLAGS += -I$(NANOPB_DIR)
 CSRC  = decode.c                   # The main program
 CSRC += CreateAccount.pb.c                # The compiled protocol definition
 CSRC += wrappers.pb.c                # The compiled protocol definition
+CSRC += util.c                # The compiled protocol definition
 CSRC += $(NANOPB_DIR)/pb_encode.c  # The nanopb encoder
 CSRC += $(NANOPB_DIR)/pb_decode.c  # The nanopb decoder
 CSRC += $(NANOPB_DIR)/pb_common.c  # The nanopb common parts
