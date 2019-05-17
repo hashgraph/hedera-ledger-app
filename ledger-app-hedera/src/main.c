@@ -143,14 +143,7 @@ static void ui_idle(void) {
         ux_stack_push();
     }
     ux_flow_init(0, ux_idle_flow, NULL);
-#endif // #if TARGET_ID
-
-    // if (os_seph_features() &
-    //     SEPROXYHAL_TAG_SESSION_START_EVENT_FEATURE_SCREEN_BIG) {
-    //     UX_DISPLAY(bagl_ui_sample_blue, NULL);
-    // } else {
-    //     UX_DISPLAY(bagl_ui_sample_nanos, NULL);
-    // }
+#endif 
 }
 // display stepped screens
 unsigned int ux_step;
@@ -194,13 +187,10 @@ void handleGetPublicKey(uint8_t p1, uint8_t p2, uint8_t *dataBuffer,
         dataBuffer += 4;
         PRINTF("bip32Path[%d]=%d\n", i, bip32Path[i]);
     }
-    // tmpCtx.publicKeyContext.getChaincode = (p2Chain == P2_CHAINCODE);
-
+    
     if(curve == CX_CURVE_Ed25519){
         PRINTF("curve=CX_CURVE_Ed25519\n");
         os_perso_derive_node_bip32(CX_CURVE_Ed25519, bip32Path, bip32PathLength, privateKeyData, NULL);
-        //os_perso_derive_node_bip32_seed_key(HDW_ED25519_SLIP10, CX_CURVE_Ed25519, bip32Path, bip32PathLength, privateKeyData, 
-        //NULL, NULL, 0);
     }
     else {
         PRINTF("curve!=CX_CURVE_Ed25519\n");
@@ -219,151 +209,11 @@ void handleGetPublicKey(uint8_t p1, uint8_t p2, uint8_t *dataBuffer,
     os_memset(&privateKey, 0, sizeof(privateKey));
     os_memset(privateKeyData, 0, sizeof(privateKeyData));
     THROW(0x9000);
-    // ark_compress_public_key(&tmpCtx.publicKeyContext.publicKey, privateKeyData,
-    //                         33);
-    // addressLength = ark_public_key_to_encoded_base58(
-    //     privateKeyData, 33, tmpCtx.publicKeyContext.address,
-    //     sizeof(tmpCtx.publicKeyContext.address), 23, 0);
-    // tmpCtx.publicKeyContext.address[addressLength] = '\0';
-//     if (p1 == P1_NON_CONFIRM) {
-//         *tx = set_result_get_publicKey();
-//         THROW(0x9000);
-//     } else {
-//         os_memset(fullAddress, 0, sizeof(fullAddress));
-//         os_memmove((void *)fullAddress, tmpCtx.publicKeyContext.address, 5);
-//         os_memmove((void *)(fullAddress + 5), "...", 3);
-//         os_memmove((void *)(fullAddress + 8),
-//                    tmpCtx.publicKeyContext.address + addressLength - 4, 4);
-
-// // prepare for a UI based reply
-// #if defined(TARGET_NANOS)
-//         ux_step = 0;
-//         ux_step_count = 2;
-//         UX_DISPLAY(ui_address_nanos, ui_address_prepro);
-// #elif defined(TARGET_NANOX)
-//         ux_flow_init(0, ux_display_public_flow, NULL);
-// #endif // #if TARGET
-
-//         *flags |= IO_ASYNCH_REPLY;
-//     }
 }
 
 void handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer,
                 uint16_t dataLength, volatile unsigned int *flags,
                 volatile unsigned int *tx) {
-//     UNUSED(tx);
-//     uint8_t addressLength;
-//     uint32_t i;
-//     unsigned char address[41];
-//     bool last = (p1 & P1_LAST);
-//     p1 &= 0x7F;
-
-//     if (p1 == P1_FIRST) {
-//         tmpCtx.transactionContext.pathLength = workBuffer[0];
-//         if ((tmpCtx.transactionContext.pathLength < 0x01) ||
-//             (tmpCtx.transactionContext.pathLength > MAX_BIP32_PATH)) {
-//             PRINTF("Invalid path\n");
-//             THROW(0x6a80);
-//         }
-//         workBuffer++;
-//         dataLength--;
-//         for (i = 0; i < tmpCtx.transactionContext.pathLength; i++) {
-//             tmpCtx.transactionContext.bip32Path[i] =
-//                 (workBuffer[0] << 24) | (workBuffer[1] << 16) |
-//                 (workBuffer[2] << 8) | (workBuffer[3]);
-//             workBuffer += 4;
-//             dataLength -= 4;
-//         }
-//         if (((p2 & P2_SECP256K1) == 0) && ((p2 & P2_ED25519) == 0)) {
-//             THROW(0x6B00);
-//         }
-//         if (((p2 & P2_SECP256K1) != 0) && ((p2 & P2_ED25519) != 0)) {
-//             THROW(0x6B00);
-//         }
-//         tmpCtx.transactionContext.curve =
-//             (((p2 & P2_ED25519) != 0) ? CX_CURVE_Ed25519 : CX_CURVE_256K1);
-//     } else 
-//     if (p1 != P1_MORE) {
-//         THROW(0x6B00);
-//     }
-
-//     if (p1 == P1_FIRST) {
-//         tmpCtx.transactionContext.rawTxLength = dataLength;
-//         os_memmove(tmpCtx.transactionContext.rawTx, workBuffer, dataLength);
-//     }
-//     else
-//     if (p1 == P1_MORE) {
-//         if ((tmpCtx.transactionContext.rawTxLength + dataLength) > MAX_RAW_TX) {
-//             THROW(0x6A80);
-//         }
-//         os_memmove(tmpCtx.transactionContext.rawTx + tmpCtx.transactionContext.rawTxLength, workBuffer, dataLength);
-//         tmpCtx.transactionContext.rawTxLength += dataLength;
-//     }
-
-//     if (!last) {
-//         THROW(0x9000);
-//     }
-
-//     if (parseTx(tmpCtx.transactionContext.rawTx, tmpCtx.transactionContext.rawTxLength, &txContent) != USTREAM_FINISHED) {        
-//         THROW(0x6A80);
-//     }
-
-// #if defined(TARGET_NANOS)
-//     ux_step = 0;
-//     // "confirm", amount, address, [sourcetag], [destinationtag], fees
-//     if (txContent.type == OPERATION_TYPE_TRANSFER) {
-//         ux_step_count = 5;
-//     }
-//     else if ((txContent.type == OPERATION_TYPE_VOTE) && (txContent.voteSize == 1)) {    
-//         ux_step_count = 4;
-//     }
-//     else if ((txContent.type == OPERATION_TYPE_VOTE) && (txContent.voteSize == 2)) {    
-//         ux_step_count = 5;
-//     }
-//     else {
-//         THROW(0x6888);
-//     }
-//     UX_DISPLAY(ui_approval_nanos, ui_approval_prepro);
-
-// #elif defined(TARGET_NANOX)
-//     if (txContent.type == OPERATION_TYPE_TRANSFER) {
-//         strcpy(operation, "Transfer");
-//         strcpy(title1, "To");
-//         strcpy(title2, "Amount");
-//         strcpy(title3, "Fees");
-//         addressLength = ark_public_key_to_encoded_base58(txContent.recipientId, 21, var1, sizeof(var1), txContent.recipientId[0], 1);
-//         var1[addressLength] = '\0';
-//         ark_print_amount(txContent.amount, var2, sizeof(var2));
-//         ark_print_amount(txContent.fee, var3, sizeof(var3));
-//         ux_flow_init(0, ux_confirm_full_flow_3var, NULL);
-//     }
-//     else if ((txContent.type == OPERATION_TYPE_VOTE) && (txContent.voteSize == 1)) {    
-//         strcpy(operation, "1 vote");
-//         strcpy(title1, "Vote");
-//         strcpy(title2, "Fees");
-//         os_memmove(var1, tmpCtx.transactionContext.rawTx + txContent.assetOffset, 67);
-//         var1[67] = '\0';
-//         ark_print_amount(txContent.fee, var2, sizeof(var2));
-//         ux_flow_init(0, ux_confirm_full_flow_2var, NULL);
-//     }
-//     else if ((txContent.type == OPERATION_TYPE_VOTE) && (txContent.voteSize == 2)) {    
-//         strcpy(operation, "2 votes");
-//         strcpy(title1, "Vote 1");
-//         strcpy(title2, "Vote 2");
-//         strcpy(title3, "Fees");
-//         os_memmove(var1, tmpCtx.transactionContext.rawTx + txContent.assetOffset, 67);
-//         var1[67] = '\0';
-//         os_memmove(var2, tmpCtx.transactionContext.rawTx + txContent.assetOffset + 67, 67);
-//         var2[67] = '\0';
-//         ark_print_amount(txContent.fee, var3, sizeof(var3));
-//         ux_flow_init(0, ux_confirm_full_flow_3var, NULL);
-//     }
-//     else {
-//         THROW(0x6888);
-//     }
-// #endif // #if TARGET
-
-//     *flags |= IO_ASYNCH_REPLY;
 }
 
 void handleGetAppConfiguration(uint8_t p1, uint8_t p2, uint8_t *workBuffer,
