@@ -167,12 +167,6 @@ void handleGetPublicKey(uint8_t p1, uint8_t p2, uint8_t *dataBuffer,
         PRINTF("Invalid path\n");
         THROW(0x6a80);
     }
-    // if ((p1 != P1_CONFIRM) && (p1 != P1_NON_CONFIRM)) {
-    //     THROW(0x6B00);
-    // }
-    // if ((p2Chain != P2_CHAINCODE) && (p2Chain != P2_NO_CHAINCODE)) {
-    //     THROW(0x6B01);
-    // }
     if (((p2 & P2_SECP256K1) == 0) && ((p2 & P2_ED25519) == 0)) {
         THROW(0x6B02);
     }
