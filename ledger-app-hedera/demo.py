@@ -22,7 +22,7 @@ parser.add_argument('--tx', help="TX to sign, hex encoded")
 args = parser.parse_args()
 
 if args.path == None:
-	args.path="44'/3030'/0'/0/0"
+	args.path="44'/3030'/0'/0'/0'"
 #if args.tx == None:
 #	raise Exception("Missing TX")
 

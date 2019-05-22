@@ -51,7 +51,7 @@
 #define MAX_MEMO_SIZE 128
 
 typedef struct publicKeyContext_t {
-    uint8_t publicKey[32];
+    uint8_t publicKey[PUBLIC_KEY_SIZE];
 } publicKeyContext_t;
 
 typedef struct txContent_t {
@@ -81,8 +81,6 @@ txContent_t txContent;
 
 unsigned char G_io_seproxyhal_spi_buffer[IO_SEPROXYHAL_BUFFER_SIZE_B];
 
-static const bagl_element_t *io_seproxyhal_touch_exit(const bagl_element_t *e);
-
 ux_state_t ux;
 
 #if defined(TARGET_NANOS)
@@ -101,12 +99,6 @@ const ux_menu_entry_t menu_main[] = {
     UX_MENU_END};
 
 #endif // #if TARGET_NANOS
-
-static const bagl_element_t *io_seproxyhal_touch_exit(const bagl_element_t *e) {
-    // Go back to the dashboard
-    os_sched_exit(0);
-    return NULL;
-}
 
 unsigned short io_exchange_al(unsigned char channel, unsigned short tx_len) {
     switch (channel & ~(IO_FLAGS)) {
@@ -149,20 +141,22 @@ static void ui_idle(void) {
 unsigned int ux_step;
 unsigned int ux_step_count;
 
+uint32_t set_result_get_public_key() {
+    os_memmove(G_io_apdu_buffer, tmpCtx.publicKeyContext.publicKey, PUBLIC_KEY_SIZE);
+    return PUBLIC_KEY_SIZE;
+}
+
 void handleGetPublicKey(uint8_t p1, uint8_t p2, uint8_t *dataBuffer,
                         uint16_t dataLength, volatile unsigned int *flags,
                         volatile unsigned int *tx) {
     UNUSED(dataLength);
-    uint8_t privateKeyData[32];
+    uint8_t privateKeyData[64];
     uint32_t bip32Path[MAX_BIP32_PATH];
-    uint32_t i;
+    size_t i;
     uint8_t bip32PathLength = *(dataBuffer++);
     cx_ecfp_public_key_t publicKey;
     cx_ecfp_private_key_t privateKey;
-    uint8_t p2Chain = p2 & 0x3F;
     cx_curve_t curve;
-    uint8_t addressLength;
-    PRINTF("bip32PathLength=%d\n",bip32PathLength);
     if ((bip32PathLength < 0x01) || (bip32PathLength > MAX_BIP32_PATH)) {
         PRINTF("Invalid path\n");
         THROW(0x6a80);
@@ -179,29 +173,22 @@ void handleGetPublicKey(uint8_t p1, uint8_t p2, uint8_t *dataBuffer,
         bip32Path[i] = (dataBuffer[0] << 24) | (dataBuffer[1] << 16) |
                        (dataBuffer[2] << 8) | (dataBuffer[3]);
         dataBuffer += 4;
-        PRINTF("bip32Path[%d]=%d\n", i, bip32Path[i]);
     }
-    
-    if(curve == CX_CURVE_Ed25519){
-        PRINTF("curve=CX_CURVE_Ed25519\n");
-        os_perso_derive_node_bip32(CX_CURVE_Ed25519, bip32Path, bip32PathLength, privateKeyData, NULL);
-    }
-    else {
-        PRINTF("curve!=CX_CURVE_Ed25519\n");
-        os_perso_derive_node_bip32(CX_CURVE_256K1, bip32Path, bip32PathLength, privateKeyData, NULL);
-    }
-    PRINTF("initiating keypair\n");
-    cx_ecfp_init_private_key(curve, privateKeyData, 32, &privateKey);
-    PRINTF("generating keypair\n");
+    PRINTF("bip32PathLength=%d\n",bip32PathLength);
+    //os_perso_derive_node_bip32(curve, bip32Path, bip32PathLength, privateKeyData, NULL);
+    os_perso_derive_node_bip32_seed_key(HDW_ED25519_SLIP10, CX_CURVE_Ed25519, bip32Path, bip32PathLength, privateKeyData, NULL, (unsigned char*) "ed25519 seed", 12);
+
+    cx_ecfp_init_private_key(curve, privateKeyData, PUBLIC_KEY_SIZE, &privateKey);
     cx_ecfp_generate_pair(curve, &publicKey,
                           &privateKey, 1);
-    init_public_key(publicKey,tmpCtx.publicKeyContext.publicKey);
+    extract_public_key(publicKey,tmpCtx.publicKeyContext.publicKey);
     char pub_hex[65];
-    buffer_to_hex(tmpCtx.publicKeyContext.publicKey, pub_hex, 32);
+    buffer_to_hex(tmpCtx.publicKeyContext.publicKey, pub_hex, PUBLIC_KEY_SIZE);
     PRINTF("pub_hex=%s\n", pub_hex);
     os_memset(&publicKey, 0, sizeof(publicKey));
     os_memset(&privateKey, 0, sizeof(privateKey));
     os_memset(privateKeyData, 0, sizeof(privateKeyData));
+    *tx = set_result_get_public_key();
     THROW(0x9000);
 }
 
@@ -351,7 +338,7 @@ static void sample_main(void) {
         END_TRY;
     }
 
-return_to_dashboard:
+// return_to_dashboard:
     return;
 }
 

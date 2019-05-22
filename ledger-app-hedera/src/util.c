@@ -5,8 +5,6 @@
 #include <string.h>
 #include "util.h"
 
-#define PUBLIC_KEY_SIZE 32
-
 bool hex_to_bytes(char* hex, uint8_t *buffer) {
   if(hex == NULL) 
       return false;
@@ -65,14 +63,14 @@ void buffer_to_hex(uint8_t *buffer, char *hex, size_t buffer_length)
 {
   unsigned char hex_str[]= "0123456789abcdef";
   memset(hex, 0, buffer_length*2+1);
-  for(int i = 0; i < buffer_length; i++) {
+  for(size_t i = 0; i < buffer_length; i++) {
       //to maintain proper endianness read buffer 'p' from the other end 
       hex[i * 2 + 0] = hex_str[(buffer[i] >> 4) & 0x0F];
       hex[i * 2 + 1] = hex_str[(buffer[i]) & 0x0F];
   }
 }
 
-void init_public_key(cx_ecfp_public_key_t publicKey, uint8_t *buffer) {
+void extract_public_key(cx_ecfp_public_key_t publicKey, uint8_t *buffer) {
   // copy public key little endian to big endian
   uint8_t i;
   for (i = 0; i < PUBLIC_KEY_SIZE; i++) {
