@@ -274,7 +274,9 @@ static void sample_main(void) {
                         {
                             PRINTF("Decoding failed: %s\n", PB_GET_ERROR(&stream));
                         }
-                        
+                        char body_hex[512];
+                        buffer_to_hex(message.bodyData.bodyBytes.bytes, body_hex, message.bodyData.bodyBytes.size);
+                        PRINTF("bodyBytes: %s\n", body_hex);
                         /* Create a stream that reads from the buffer. */
                         pb_istream_t streamBody = pb_istream_from_buffer(message.bodyData.bodyBytes.bytes, message.bodyData.bodyBytes.size);
                         // pb_istream_t streamBody = pb_istream_from_buffer(buffer, buffer_length);

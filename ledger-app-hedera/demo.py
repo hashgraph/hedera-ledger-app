@@ -1,3 +1,20 @@
+#!/usr/bin/env python
+#*******************************************************************************
+#*   Ledger Blue
+#*   (c) 2016 Ledger
+#*
+#*  Licensed under the Apache License, Version 2.0 (the "License");
+#*  you may not use this file except in compliance with the License.
+#*  You may obtain a copy of the License at
+#*
+#*      http://www.apache.org/licenses/LICENSE-2.0
+#*
+#*  Unless required by applicable law or agreed to in writing, software
+#*  distributed under the License is distributed on an "AS IS" BASIS,
+#*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#*  See the License for the specific language governing permissions and
+#*  limitations under the License.
+#********************************************************************************
 from ledgerblue.comm import getDongle
 from ledgerblue.commException import CommException
 import argparse
@@ -31,22 +48,15 @@ if args.path == None:
 donglePath = parse_bip32_path(args.path)
 
 pathLength = len(donglePath) + 1
-#if len(args.tx) > 255 - pathLength:
-#    data1 = args.tx[0 : 255 - pathLength]
-#    data2 = args.tx[255 - pathLength:]
-#    p1 = "00"
-#else:
-#    data1 = args.tx
-#    data2 = None
-#    p1 = "80"
 p1 = "80"
 p2 = "80"
-#apdu = ("e004" + p1 + "40").decode('hex') + chr(pathLength + len(data1)) + chr(len(donglePath) / 4) + donglePath + data1
-apdu = ("e002" + p1 + p2).decode('hex') + chr(pathLength) + chr(len(donglePath) / 4) + donglePath
+data1 = ("0a130a0c08e9b2ace60510e088a88103120318ce101202180318a08d062202081e320d54657374205472616e7366657272140a120a070a0318cc1010010a070a0318cd101002").decode('hex')
+#apdu = ("e002" + p1 + p2).decode('hex') + chr(pathLength) + chr(len(donglePath) / 4) + donglePath
+apdu = ("e004" + p1 + p2).decode('hex') + chr(pathLength + len(data1)) + chr(len(donglePath) / 4) + donglePath + data1
 
 dongle = getDongle(True)
 result = dongle.exchange(bytes(apdu))
-
+#0a130a0c08e9b2ace60510e088a88103120318ce101202180318a08d062202081e320d54657374205472616e7366657272140a120a070a0318cc1010010a070a0318cd101002
 #if data2 != None:
 #    apdu = "e0048140".decode('hex') + chr(len(data2)) + data2
 #    result = dongle.exchange(bytes(apdu))
@@ -56,3 +66,4 @@ result = dongle.exchange(bytes(apdu))
 
 
 #print "publicKey " + str(result).encode('hex')
+
