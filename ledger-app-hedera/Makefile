@@ -27,6 +27,14 @@ APPVERSION_M=0
 APPVERSION_N=1
 APPVERSION_P=0
 APPVERSION=$(APPVERSION_M).$(APPVERSION_N).$(APPVERSION_P)
+
+#prepare hsm generation
+ifeq ($(TARGET_NAME),TARGET_BLUE)
+ICONNAME=icon_hb.gif
+else
+ICONNAME=icon_hb.gif
+endif
+
 APP_LOAD_PARAMS = --appFlags 0x40 --path "44'/3030'" --curve ed25519 $(COMMON_LOAD_PARAMS)
 
 # Build configuration
@@ -72,6 +80,9 @@ AFLAGS +=
 LD := $(GCCPATH)arm-none-eabi-gcc
 LDFLAGS += -O3 -Os
 LDLIBS += -lm -lgcc -lc 
+
+# import rules to compile glyphs(/pone)
+include $(BOLOS_SDK)/Makefile.glyphs
 
 # Main rules
 

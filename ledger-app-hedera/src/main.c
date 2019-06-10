@@ -1,5 +1,5 @@
 /*******************************************************************************
-*   Ledger Blue
+*   Ledger
 *   (c) 2016 Ledger
 *
 *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@
 #include "util.h"
 #include "pb_encode.h"
 #include "pb_decode.h"
-#include "CreateAccount.pb.h"
+#include "Hedera.pb.h"
 
 unsigned char G_io_seproxyhal_spi_buffer[IO_SEPROXYHAL_BUFFER_SIZE_B];
 
@@ -112,17 +112,12 @@ const ux_menu_entry_t menu_about[] = {
     UX_MENU_END};
 
 const ux_menu_entry_t menu_main[] = {
-    {NULL, NULL, 0, &C_icon_ark, "Use wallet to", "view accounts", 33, 12},
+    {NULL, NULL, 0, &C_icon_hb, "Use wallet to", "view accounts", 33, 12},
     {menu_about, NULL, 0, NULL, "About", NULL, 0, 0},
     {NULL, os_sched_exit, 0, &C_icon_dashboard, "Quit app", NULL, 50, 29},
     UX_MENU_END};
 
-const char * const ui_approval_transfer[] = {
-    {"Verify"},
-    {"To"},
-    {"Amount"},
-    {"Fees"}
-};
+const char * const ui_approval_transfer[] = {"Verify","To","Amount","Fees"};
 volatile char line2[50];
 
 static const bagl_element_t bagl_ui_approval_nanos[] = {
@@ -491,9 +486,7 @@ void handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer,
                 uint16_t dataLength, volatile unsigned int *flags,
                 volatile unsigned int *tx) {
     UNUSED(tx);
-    //uint8_t addressLength;
     uint32_t i;
-    //unsigned char address[41];
     bool last = (p1 & P1_LAST);
     p1 &= 0x7F;
 
@@ -622,7 +615,7 @@ void handleApdu(volatile unsigned int *flags, volatile unsigned int *tx) {
     }
     END_TRY;
 }
-static void sample_main(void) {
+static void hedera_main(void) {
     volatile unsigned int rx = 0;
     volatile unsigned int tx = 0;
     volatile unsigned int flags = 0;
@@ -703,11 +696,11 @@ static unsigned char display_text_part() {
     lineBuffer[i] = '\0';
     return 1;
 }
-unsigned short print_account(int64_t account, uint8_t *out,
+unsigned short print_account(int64_t account, char *out,
                                 uint32_t outlen) {
     char tmp[20];
     uint32_t numDigits = 0, i;
-    uint64_t base = 1;
+    int64_t base = 1;
     while (base <= account) {
         base *= 10;
         numDigits++;
@@ -792,7 +785,7 @@ bool adjustDecimals(char *src, uint32_t srcLength, char *target,
     }
     return true;
 }
-unsigned short print_amount(uint64_t amount, uint8_t *out,
+unsigned short print_amount(uint64_t amount, char *out,
                                 uint32_t outlen) {
     char tmp[20];
     char tmp2[26];
@@ -820,7 +813,7 @@ unsigned short print_amount(uint64_t amount, uint8_t *out,
     }
     return strlen(out);
 }
-unsigned int bagl_ui_text_review_prepro(const bagl_element_t *element) {
+bagl_element_t*  bagl_ui_text_review_prepro(const bagl_element_t *element) {
     switch (element->component.userid)
     {
     case 0x00:
@@ -841,12 +834,14 @@ unsigned int bagl_ui_text_review_prepro(const bagl_element_t *element) {
         switch (ux_step)
         {
         case 0:
+            //Verify transaction message
             if(transactionBody->which_data==TransactionBody_cryptoTransfer_tag) {
                 tmp_element.text = "transaction";
             }
             break;
         
         case 1:
+            //To account
             if(transactionBody->which_data==TransactionBody_cryptoTransfer_tag) {
                 print_account(transactionBody->transactionID.accountID.accountNum, line2, sizeof(line2));
                 tmp_element.text = line2;
@@ -854,6 +849,7 @@ unsigned int bagl_ui_text_review_prepro(const bagl_element_t *element) {
             break;
         
         case 2:
+            //Transfer amount
             if(transactionBody->which_data==TransactionBody_cryptoTransfer_tag) {
                 print_amount(transactionBody->data.cryptoTransfer.transfers.accountAmounts[1].amount, line2, sizeof(line2));
                 tmp_element.text = line2;
@@ -861,6 +857,7 @@ unsigned int bagl_ui_text_review_prepro(const bagl_element_t *element) {
             break;
         
         case 3:
+            //Transaction fee
             if(transactionBody->which_data==TransactionBody_cryptoTransfer_tag) {
                 print_amount(transactionBody->transactionFee, line2, sizeof(line2));
                 tmp_element.text = line2;
@@ -981,7 +978,7 @@ __attribute__((section(".boot"))) int main(void) {
 
                 ui_idle();
 
-                sample_main();
+                hedera_main();
             }
             CATCH_OTHER(e) {
             }
