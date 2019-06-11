@@ -1,20 +1,3 @@
-#!/usr/bin/env python
-#*******************************************************************************
-#*   Ledger Blue
-#*   (c) 2016 Ledger
-#*
-#*  Licensed under the Apache License, Version 2.0 (the "License");
-#*  you may not use this file except in compliance with the License.
-#*  You may obtain a copy of the License at
-#*
-#*      http://www.apache.org/licenses/LICENSE-2.0
-#*
-#*  Unless required by applicable law or agreed to in writing, software
-#*  distributed under the License is distributed on an "AS IS" BASIS,
-#*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#*  See the License for the specific language governing permissions and
-#*  limitations under the License.
-#********************************************************************************
 from ledgerblue.comm import getDongle
 from ledgerblue.commException import CommException
 import argparse
@@ -50,7 +33,8 @@ donglePath = parse_bip32_path(args.path)
 pathLength = len(donglePath) + 1
 p1 = "80"
 p2 = "80"
-data1 = ("0a130a0c08e9b2ace60510e088a88103120318ce101202180318a08d062202081e320d54657374205472616e7366657272140a120a070a0318cc1010010a070a0318cd101002").decode('hex')
+#data1 = ("0a130a0c08e9b2ace60510e088a88103120318ce101202180318a08d062202081e320d54657374205472616e7366657272140a120a070a0318cc1010010a070a0318cd101002").decode('hex')
+data1 = ("0a130a0c08958380e80510d8ff8e8c01120318c609120218032202081e320d54657374205472616e7366657272180a160a090a0318c609109d9c010a090a0318c509109e9c01").decode('hex')
 #apdu = ("e002" + p1 + p2).decode('hex') + chr(pathLength) + chr(len(donglePath) / 4) + donglePath
 apdu = ("e004" + p1 + p2).decode('hex') + chr(pathLength + len(data1)) + chr(len(donglePath) / 4) + donglePath + data1
 

@@ -1,6 +1,6 @@
 /*******************************************************************************
-*   Ledger
-*   (c) 2016 Ledger
+*   Hedera Wallet
+*   (c) 2019 Swirlds
 *
 *  Licensed under the Apache License, Version 2.0 (the "License");
 *  you may not use this file except in compliance with the License.
@@ -441,7 +441,7 @@ void handleGetAppConfiguration(uint8_t p1, uint8_t p2, uint8_t *workBuffer,
 }
 bool parseTx(uint8_t *rawTx, uint32_t rawTxLength, TransactionBody *messageBody) {
     pb_istream_t streamBody = pb_istream_from_buffer(rawTx, rawTxLength);
-                        
+    PRINTF("here\n");                   
     bool status = pb_decode(&streamBody, TransactionBody_fields, messageBody);
     /* Check for errors... */
     if (!status){
@@ -479,6 +479,7 @@ bool parseTx(uint8_t *rawTx, uint32_t rawTxLength, TransactionBody *messageBody)
         PRINTF("messageBody.data.cryptoTransfer.transfers.accountAmounts[1].amount %s\n",result_hex);
     } else {
         //TODO: throw unsupported transaction type error
+        PRINTF("messageBody->which_data=%d\n",messageBody->which_data);
     }
     return status;
 }
