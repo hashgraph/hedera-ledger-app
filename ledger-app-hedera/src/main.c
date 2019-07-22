@@ -831,6 +831,11 @@ bagl_element_t*  bagl_ui_text_review_prepro(const bagl_element_t *element) {
     
     case 0x03:
         os_memmove(&tmp_element, element, sizeof(bagl_element_t));
+        //currenctly only one payment (two accountAmounts) supported
+        if(transactionBody->data.cryptoTransfer.transfers.accountAmounts_count != 2) {
+            THROW(EXCEPTION);
+        }
+        uint16_t accountAmountIndex = (transactionBody->data.cryptoTransfer.transfers.accountAmounts[0].amount > 0) ? 0 : 1;
         switch (ux_step)
         {
         case 0:
@@ -843,7 +848,7 @@ bagl_element_t*  bagl_ui_text_review_prepro(const bagl_element_t *element) {
         case 1:
             //To account
             if(transactionBody->which_data==TransactionBody_cryptoTransfer_tag) {
-                print_account(transactionBody->data.cryptoTransfer.transfers.accountAmounts[1].accountID.accountNum, line2, sizeof(line2));
+                print_account(transactionBody->data.cryptoTransfer.transfers.accountAmounts[accountAmountIndex].accountID.accountNum, line2, sizeof(line2));
                 tmp_element.text = line2;
             }
             break;
@@ -851,7 +856,7 @@ bagl_element_t*  bagl_ui_text_review_prepro(const bagl_element_t *element) {
         case 2:
             //Transfer amount
             if(transactionBody->which_data==TransactionBody_cryptoTransfer_tag) {
-                print_amount(transactionBody->data.cryptoTransfer.transfers.accountAmounts[1].amount, line2, sizeof(line2));
+                print_amount(transactionBody->data.cryptoTransfer.transfers.accountAmounts[accountAmountIndex].amount, line2, sizeof(line2));
                 tmp_element.text = line2;
             }
             break;
