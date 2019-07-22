@@ -441,7 +441,7 @@ void handleGetAppConfiguration(uint8_t p1, uint8_t p2, uint8_t *workBuffer,
 }
 bool parseTx(uint8_t *rawTx, uint32_t rawTxLength, TransactionBody *messageBody) {
     pb_istream_t streamBody = pb_istream_from_buffer(rawTx, rawTxLength);
-    PRINTF("here\n");                   
+                        
     bool status = pb_decode(&streamBody, TransactionBody_fields, messageBody);
     /* Check for errors... */
     if (!status){
@@ -479,7 +479,6 @@ bool parseTx(uint8_t *rawTx, uint32_t rawTxLength, TransactionBody *messageBody)
         PRINTF("messageBody.data.cryptoTransfer.transfers.accountAmounts[1].amount %s\n",result_hex);
     } else {
         //TODO: throw unsupported transaction type error
-        PRINTF("messageBody->which_data=%d\n",messageBody->which_data);
     }
     return status;
 }
@@ -844,7 +843,7 @@ bagl_element_t*  bagl_ui_text_review_prepro(const bagl_element_t *element) {
         case 1:
             //To account
             if(transactionBody->which_data==TransactionBody_cryptoTransfer_tag) {
-                print_account(transactionBody->transactionID.accountID.accountNum, line2, sizeof(line2));
+                print_account(transactionBody->data.cryptoTransfer.transfers.accountAmounts[1].accountID.accountNum, line2, sizeof(line2));
                 tmp_element.text = line2;
             }
             break;
