@@ -34,9 +34,9 @@ pathLength = len(donglePath) + 1
 p1 = "80"
 p2 = "80"
 #data1 = ("0a130a0c08e9b2ace60510e088a88103120318ce101202180318a08d062202081e320d54657374205472616e7366657272140a120a070a0318cc1010010a070a0318cd101002").decode('hex')
-data1 = ("0a130a0c08958380e80510d8ff8e8c01120318c609120218032202081e320d54657374205472616e7366657272180a160a090a0318c609109d9c010a090a0318c509109e9c01").decode('hex')
-#apdu = ("e002" + p1 + p2).decode('hex') + chr(pathLength) + chr(len(donglePath) / 4) + donglePath
-apdu = ("e004" + p1 + p2).decode('hex') + chr(pathLength + len(data1)) + chr(len(donglePath) / 4) + donglePath + data1
+data1 = ("0a120a0b0899cf80e80510b88be609120318e9071202180318a08d062202081e320f48617264776172653157616c6c657472180a160a090a0318e90710a79a010a090a0318f20710a89a01").decode('hex')
+apdu = ("e002" + p1 + p2).decode('hex') + chr(pathLength) + chr(len(donglePath) / 4) + donglePath
+#apdu = ("e004" + p1 + p2).decode('hex') + chr(pathLength + len(data1)) + chr(len(donglePath) / 4) + donglePath + data1
 
 dongle = getDongle(True)
 result = dongle.exchange(bytes(apdu))

@@ -36,10 +36,12 @@ enum UI_STATE uiState;
 
 ux_state_t ux;
 
-static const bagl_element_t *io_seproxyhal_touch_exit(const bagl_element_t *e);
-static const bagl_element_t*
-io_seproxyhal_touch_approve(const bagl_element_t *e);
-static const bagl_element_t *io_seproxyhal_touch_deny(const bagl_element_t *e);
+uint32_t set_result_get_public_key(void);
+unsigned int io_seproxyhal_touch_exit(const bagl_element_t *e);
+unsigned int io_seproxyhal_touch_approve(const bagl_element_t *e);
+unsigned int io_seproxyhal_touch_deny(const bagl_element_t *e);
+unsigned int io_seproxyhal_touch_address_ok(const bagl_element_t *e);
+unsigned int io_seproxyhal_touch_address_cancel(const bagl_element_t *e);
 
 static void ui_idle(void);
 static unsigned char display_text_part(void);
@@ -94,7 +96,7 @@ union {
 } tmpCtx;
 
 TransactionBody *transactionBody;
-
+volatile char fullAddress[68];
 bagl_element_t tmp_element;
 // display stepped screens
 unsigned int ux_step;
@@ -116,6 +118,102 @@ const ux_menu_entry_t menu_main[] = {
     {menu_about, NULL, 0, NULL, "About", NULL, 0, 0},
     {NULL, os_sched_exit, 0, &C_icon_dashboard, "Quit app", NULL, 50, 29},
     UX_MENU_END};
+
+const bagl_element_t ui_address_nanos[] = {
+    // type                               userid    x    y   w    h  str rad
+    // fill      fg        bg      fid iid  txt   touchparams...       ]
+    {{BAGL_RECTANGLE, 0x00, 0, 0, 128, 32, 0, 0, BAGL_FILL, 0x000000, 0xFFFFFF,
+      0, 0},
+     NULL,
+     0,
+     0,
+     0,
+     NULL,
+     NULL,
+     NULL},
+
+    {{BAGL_ICON, 0x00, 3, 12, 7, 7, 0, 0, 0, 0xFFFFFF, 0x000000, 0,
+      BAGL_GLYPH_ICON_CROSS},
+     NULL,
+     0,
+     0,
+     0,
+     NULL,
+     NULL,
+     NULL},
+    {{BAGL_ICON, 0x00, 117, 13, 8, 6, 0, 0, 0, 0xFFFFFF, 0x000000, 0,
+      BAGL_GLYPH_ICON_CHECK},
+     NULL,
+     0,
+     0,
+     0,
+     NULL,
+     NULL,
+     NULL},
+
+    //{{BAGL_ICON                           , 0x01,  31,   9,  14,  14, 0, 0, 0
+    //, 0xFFFFFF, 0x000000, 0, BAGL_GLYPH_ICON_EYE_BADGE  }, NULL, 0, 0, 0,
+    // NULL, NULL, NULL },
+    {{BAGL_LABELINE, 0x01, 0, 12, 128, 32, 0, 0, 0, 0xFFFFFF, 0x000000,
+      BAGL_FONT_OPEN_SANS_EXTRABOLD_11px | BAGL_FONT_ALIGNMENT_CENTER, 0},
+     "Confirm",
+     0,
+     0,
+     0,
+     NULL,
+     NULL,
+     NULL},
+    {{BAGL_LABELINE, 0x01, 0, 26, 128, 32, 0, 0, 0, 0xFFFFFF, 0x000000,
+      BAGL_FONT_OPEN_SANS_EXTRABOLD_11px | BAGL_FONT_ALIGNMENT_CENTER, 0},
+     "public key",
+     0,
+     0,
+     0,
+     NULL,
+     NULL,
+     NULL},
+
+    {{BAGL_LABELINE, 0x02, 0, 12, 128, 32, 0, 0, 0, 0xFFFFFF, 0x000000,
+      BAGL_FONT_OPEN_SANS_REGULAR_11px | BAGL_FONT_ALIGNMENT_CENTER, 0},
+     "Public key",
+     0,
+     0,
+     0,
+     NULL,
+     NULL,
+     NULL},
+    {{BAGL_LABELINE, 0x02, 23, 26, 82, 12, 0x80 | 10, 0, 0, 0xFFFFFF, 0x000000,
+      BAGL_FONT_OPEN_SANS_EXTRABOLD_11px | BAGL_FONT_ALIGNMENT_CENTER, 26},
+     (char *)fullAddress,
+     0,
+     0,
+     0,
+     NULL,
+     NULL,
+     NULL},
+};
+
+unsigned int ui_address_prepro(const bagl_element_t *element) {
+    if (element->component.userid > 0) {
+        unsigned int display = (ux_step == element->component.userid - 1);
+        if (display) {
+            switch (element->component.userid) {
+            case 1:
+                UX_CALLBACK_SET_INTERVAL(2000);
+                break;
+            case 2:
+                UX_CALLBACK_SET_INTERVAL(MAX(
+                    3000, 1000 + bagl_label_roundtrip_duration_ms(element, 7)));
+                break;
+            }
+        }
+        return display;
+    }
+    return 1;
+}
+
+unsigned int ui_address_nanos_button(unsigned int button_mask,
+                                     unsigned int button_mask_counter);
 
 const char * const ui_approval_transfer[] = {"Verify","To","Amount","Fees"};
 volatile char line2[50];
@@ -283,14 +381,51 @@ bagl_ui_text_review_nanos_button(unsigned int button_mask,
 
 #endif
 
-static const bagl_element_t *io_seproxyhal_touch_exit(const bagl_element_t *e) {
+unsigned int io_seproxyhal_touch_exit(const bagl_element_t *e) {
     // Go back to the dashboard
     os_sched_exit(0);
-    return NULL; // do not redraw the widget
+    return 0; // do not redraw the widget
 }
 
-static const bagl_element_t*
-io_seproxyhal_touch_approve(const bagl_element_t *e) {
+unsigned int io_seproxyhal_touch_address_ok(const bagl_element_t *e) {
+    uint32_t tx = set_result_get_public_key();
+    G_io_apdu_buffer[tx++] = 0x90;
+    G_io_apdu_buffer[tx++] = 0x00;
+    // Send back the response, do not restart the event loop
+    io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, tx);
+    // Display back the original UX
+    ui_idle();
+    return 0; // do not redraw the widget
+}
+
+unsigned int io_seproxyhal_touch_address_cancel(const bagl_element_t *e) {
+    G_io_apdu_buffer[0] = 0x69;
+    G_io_apdu_buffer[1] = 0x85;
+    // Send back the response, do not restart the event loop
+    io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, 2);
+    // Display back the original UX
+    ui_idle();
+    return 0; // do not redraw the widget
+}
+
+#if defined(TARGET_NANOS)
+unsigned int ui_address_nanos_button(unsigned int button_mask,
+                                     unsigned int button_mask_counter) {
+    switch (button_mask) {
+    case BUTTON_EVT_RELEASED | BUTTON_LEFT: // CANCEL
+        io_seproxyhal_touch_address_cancel(NULL);
+        break;
+
+    case BUTTON_EVT_RELEASED | BUTTON_RIGHT: { // OK
+        io_seproxyhal_touch_address_ok(NULL);
+        break;
+    }
+    }
+    return 0;
+}
+#endif // #if defined(TARGET_NANOS)
+
+unsigned int io_seproxyhal_touch_approve(const bagl_element_t *e) {
     uint8_t privateKeyData[64];
     unsigned char finalhash[32];
     cx_sha256_t localHash;
@@ -336,7 +471,7 @@ io_seproxyhal_touch_approve(const bagl_element_t *e) {
     return 0; // do not redraw the widget
 }
 
-static const bagl_element_t *io_seproxyhal_touch_deny(const bagl_element_t *e) {
+unsigned int io_seproxyhal_touch_deny(const bagl_element_t *e) {
     G_io_apdu_buffer[0] = 0x69;
     G_io_apdu_buffer[1] = 0x85;
     // Send back the response, do not restart the event loop
@@ -417,11 +552,27 @@ void handleGetPublicKey(uint8_t p1, uint8_t p2, uint8_t *dataBuffer,
     char pub_hex[65];
     buffer_to_hex(tmpCtx.publicKeyContext.publicKey, pub_hex, PUBLIC_KEY_SIZE);
     PRINTF("pub_hex=%s\n", pub_hex);
+    PRINTF("p1=%d\n",p1);
     os_memset(&publicKey, 0, sizeof(publicKey));
     os_memset(&privateKey, 0, sizeof(privateKey));
     os_memset(privateKeyData, 0, sizeof(privateKeyData));
-    *tx = set_result_get_public_key();
-    THROW(0x9000);
+    
+    if (p1 == P1_NON_CONFIRM) {
+        *tx = set_result_get_public_key();
+        THROW(0x9000);
+    } else {
+        os_memset(fullAddress, 0, sizeof(fullAddress));
+        os_memmove((void *)fullAddress, pub_hex, 64);
+
+// prepare for a UI based reply
+#if defined(TARGET_NANOS)
+        ux_step = 0;
+        ux_step_count = 2;
+        UX_DISPLAY(ui_address_nanos, ui_address_prepro);
+#endif // #if TARGET
+
+        *flags |= IO_ASYNCH_REPLY;
+    }
 }
 void handleGetAppConfiguration(uint8_t p1, uint8_t p2, uint8_t *workBuffer,
                                uint16_t dataLength,
