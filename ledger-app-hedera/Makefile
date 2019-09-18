@@ -37,10 +37,15 @@ endif
 
 APP_LOAD_PARAMS = --appFlags 0x40 --path "44'/3030'" --curve ed25519 $(COMMON_LOAD_PARAMS)
 
-# Build configuration
+################
+# Default rule #
+################
 
-APP_SOURCE_PATH += src
-SDK_SOURCE_PATH += lib_stusb lib_stusb_impl
+all: default
+
+############
+# Platform #
+############
 
 DEFINES += APPVERSION=\"$(APPVERSION)\"
 
@@ -55,6 +60,9 @@ DEFINES += CX_COMPLIANCE_141
 
 DEFINES   += LEDGER_MAJOR_VERSION=$(APPVERSION_M) LEDGER_MINOR_VERSION=$(APPVERSION_N) LEDGER_PATCH_VERSION=$(APPVERSION_P)
 
+##############
+#  Compiler  #
+##############
 # Compiler, assembler, and linker
 
 ifneq ($(BOLOS_ENV),)
@@ -84,9 +92,11 @@ LDLIBS += -lm -lgcc -lc
 # import rules to compile glyphs(/pone)
 include $(BOLOS_SDK)/Makefile.glyphs
 
-# Main rules
+### computed variables
 
-all: default
+APP_SOURCE_PATH += src
+SDK_SOURCE_PATH += lib_stusb lib_stusb_impl
+
 
 load: all
 	python -m ledgerblue.loadApp $(APP_LOAD_PARAMS)
