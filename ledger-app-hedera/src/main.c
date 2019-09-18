@@ -598,26 +598,30 @@ bool parseTx(uint8_t *rawTx, uint32_t rawTxLength, TransactionBody *messageBody)
     if (!status){
         PRINTF("Decoding body failed: %s\n", PB_GET_ERROR(&streamBody));
     }
+
+    //curently only transfer transaction supported
+
     // check for trnsaction type of data field
-    if (messageBody->which_data == TransactionBody_cryptoCreateAccount_tag) {
-        // create account transaction
-        char result_hex[17];
-        PRINTF("Create account transaction\n");
-        uint64_to_hex_proper_endian(messageBody->transactionID.accountID.accountNum, result_hex);
-        PRINTF("messageBody.transactionID.accountID.accountNum: %s \n", result_hex);
-        uint64_to_hex_proper_endian(messageBody->data.cryptoCreateAccount.initialBalance, result_hex);
-        PRINTF("messageBody.data.cryptoCreateAccount.initialBalance: %s \n", result_hex);
-        PRINTF("messageBody.memo: %s\n", messageBody->memo);
-    } else if (messageBody->which_data == TransactionBody_cryptoUpdateAccount_tag) {
-        // update account transaction
-        char result_hex[17];
-        PRINTF("Update account transaction\n");
-        uint64_to_hex_proper_endian(messageBody->transactionID.accountID.accountNum, result_hex);
-        PRINTF("messageBody.transactionID.accountID.accountNum: %s \n", result_hex);
-        uint64_to_hex_proper_endian(messageBody->data.cryptoUpdateAccount.autoRenewPeriod.seconds, result_hex);
-        PRINTF("messageBody.data.cryptoUpdateAccount.autoRenewPeriod.seconds: %s \n", result_hex);
-        PRINTF("messageBody.memo: %s\n", messageBody->memo);
-    } else if (messageBody->which_data == TransactionBody_cryptoTransfer_tag) {
+    // if (messageBody->which_data == TransactionBody_cryptoCreateAccount_tag) {
+    //     // create account transaction
+    //     char result_hex[17];
+    //     PRINTF("Create account transaction\n");
+    //     uint64_to_hex_proper_endian(messageBody->transactionID.accountID.accountNum, result_hex);
+    //     PRINTF("messageBody.transactionID.accountID.accountNum: %s \n", result_hex);
+    //     uint64_to_hex_proper_endian(messageBody->data.cryptoCreateAccount.initialBalance, result_hex);
+    //     PRINTF("messageBody.data.cryptoCreateAccount.initialBalance: %s \n", result_hex);
+    //     PRINTF("messageBody.memo: %s\n", messageBody->memo);
+    // } else if (messageBody->which_data == TransactionBody_cryptoUpdateAccount_tag) {
+    //     // update account transaction
+    //     char result_hex[17];
+    //     PRINTF("Update account transaction\n");
+    //     uint64_to_hex_proper_endian(messageBody->transactionID.accountID.accountNum, result_hex);
+    //     PRINTF("messageBody.transactionID.accountID.accountNum: %s \n", result_hex);
+    //     uint64_to_hex_proper_endian(messageBody->data.cryptoUpdateAccount.autoRenewPeriod.seconds, result_hex);
+    //     PRINTF("messageBody.data.cryptoUpdateAccount.autoRenewPeriod.seconds: %s \n", result_hex);
+    //     PRINTF("messageBody.memo: %s\n", messageBody->memo);
+    // } else if (messageBody->which_data == TransactionBody_cryptoTransfer_tag) {
+    if (messageBody->which_data == TransactionBody_cryptoTransfer_tag) {
         // crypto transfer transaction
         char result_hex[17];
         PRINTF("Transfer transaction\n");
@@ -629,7 +633,7 @@ bool parseTx(uint8_t *rawTx, uint32_t rawTxLength, TransactionBody *messageBody)
         int64_to_hex_proper_endian(messageBody->data.cryptoTransfer.transfers.accountAmounts[1].amount, result_hex);
         PRINTF("messageBody.data.cryptoTransfer.transfers.accountAmounts[1].amount %s\n",result_hex);
     } else {
-        //TODO: throw unsupported transaction type error
+        THROW(0x6B04);
     }
     return status;
 }
@@ -671,6 +675,9 @@ void handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer,
     }
 
     if (p1 == P1_FIRST) {
+        if (dataLength > MAX_RAW_TX) {
+            THROW(0x6A80);
+        }
         tmpCtx.transactionContext.rawTxLength = dataLength;
         os_memmove(tmpCtx.transactionContext.rawTx, workBuffer, dataLength);
     }

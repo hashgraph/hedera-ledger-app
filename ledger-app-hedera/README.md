@@ -1,7 +1,8 @@
-# Sample Signature App for Ledger Blue & Ledger Nano S
+# Hedera Hashgraph Bolos App for Ledger Nano S
 
-This application demonstrates a more complex user interface, the Secure Element
-proxy logic, cryptographic APIs and flash storage.
+This application is the initial version for the Native support for Hedera Hashgraph Crypto
+HBAR currency. This Bolos app currently supports signature for a CryptoTransfer transaction.
+Post OA the companion app will support other API and features.
 
 Run `make load` to build and load the application onto the device. After
 installing and running the application, you can run `demo.py` to test a
