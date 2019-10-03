@@ -1143,7 +1143,8 @@ __attribute__((section(".boot"))) int main(void) {
 
                 hedera_main();
             }
-            CATCH_OTHER(e) {
+            CATCH_ALL {
+                break;
             }
             FINALLY {
             }
